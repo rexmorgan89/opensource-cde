@@ -1,0 +1,46 @@
+# === FILE 4: docker-compose.yml ===
+# Save this as docker-compose.yml in your project root
+# This starts both PostgreSQL and the Node.js API server
+
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cde-postgres
+    environment:
+      POSTGRES_USER: cde_user
+      POSTGRES_PASSWORD: cde_password
+      POSTGRES_DB: cde_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cde_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cde-api
+    environment:
+      DATABASE_URL: postgresql://cde_user:cde_password@postgres:5432/cde_db
+      JWT_SECRET: 241144
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./file_storage:/app/file_storage
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
